@@ -91,9 +91,13 @@ def write_key_in_file(filename: str, key: dict[str, str])-> None:
     """
     try:
         with open(filename, 'w', encoding='utf-8') as f:
-            f.write(f"найденный ключ шифрования текста\n")
+            f.write(f"Найденный ключ шифрования текста\n")
+            f.write(f"+------------+--------------+\n")
+            f.write(f"|    Шифр    |    Дешифр    |\n")
+            f.write(f"+------------+--------------+\n")
             for item in key:
-                f.write(f"\'{item}\': {key[item]}\n")
+                f.write(f"|    \'{item}\'     |     \'{key[item]}\'      |\n")
+                f.write(f"+------------+--------------+\n")
     except FileNotFoundError:
         print(f"File path {filename} was not found")
         sys.exit(1)
@@ -122,6 +126,11 @@ def main():
 
     key = dict(zip(char_frequencies.keys(), standard_frequencies.keys()))
 
+    key_keys = list(key.keys())
+    char_frequencies_keys = list(char_frequencies.keys())
+    while len(key) != len(char_frequencies):
+        key[char_frequencies_keys[len(key_keys)]] = char_frequencies_keys[len(key_keys)]
+
     for char in key:
         if char != "Я":
             encrypted_text = encrypted_text.replace(char, key[char].lower())
@@ -145,12 +154,28 @@ def main():
         char_to_change = input("Введите символ из зашифрованного текста, который хотите заменить: ")
         char_for_change = input("Введите символ для замены: ")
 
-        key[char_to_change] = char_for_change.upper()
-        encrypted_text = encrypted_text.replace(f"{char_to_change}", f"{char_for_change.upper()}")
+        copy_encrypted_text = encrypted_text
+        copy_key = key
+        if char_to_change.upper() in key.values():
+            for char in key:
+                if key[char] == char_to_change.upper():
+                    key[char] = char_for_change.lower()
+            encrypted_text = encrypted_text.replace(f"{char_to_change}", f"{char_for_change.upper()}")
 
         print("\n")
         print(encrypted_text)
         print("\n")
+
+        back = input("Хотите вернуться к предыдущей версии текста?(Да/Нет): ")
+        while back.lower() != "да" and back.lower() != "нет":
+            back = input("Хотите вернуться к предыдущей версии текста?(Да/Нет): ")
+
+        if back.lower() == "да":
+            encrypted_text = copy_encrypted_text
+            key = copy_key
+            print("\n")
+            print(copy_encrypted_text)
+            print("\n")
 
     write_key_in_file(args.key_path, key)
     write_decrypted_text_in_file(args.decrypted_text_path, encrypted_text)
