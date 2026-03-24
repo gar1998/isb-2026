@@ -42,8 +42,7 @@ def runs_test(binary_sequence: str) -> float:
 
     proportion_of_ones = ones_count / sequence_length
 
-    standard_deviation = 2 / math.sqrt(sequence_length)
-    if abs(proportion_of_ones - 0.5) >= standard_deviation:
+    if abs(proportion_of_ones - 0.5) >= (2 / math.sqrt(sequence_length)):
         return 0
 
     actual_runs = 1
@@ -52,7 +51,8 @@ def runs_test(binary_sequence: str) -> float:
             actual_runs = actual_runs + 1
 
     numerator = abs(actual_runs - 2 * sequence_length * proportion_of_ones * (1 - proportion_of_ones))
-    denominator = (2 * math.sqrt(2 * sequence_length) * proportion_of_ones * (1 - proportion_of_ones))
+
+    denominator = 2 * math.sqrt(2 * sequence_length) * proportion_of_ones * (1 - proportion_of_ones)
 
     p_value = erfc(numerator / denominator)
 
