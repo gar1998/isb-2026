@@ -45,7 +45,7 @@ def runs_test(binary_sequence: str) -> float:
     if abs(proportion_of_ones - 0.5) >= (2 / math.sqrt(sequence_length)):
         return 0
 
-    actual_runs = 1
+    actual_runs = 0
     for index in range(sequence_length - 1):
         if binary_sequence[index] != binary_sequence[index + 1]:
             actual_runs = actual_runs + 1
