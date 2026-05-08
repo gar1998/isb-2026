@@ -1,9 +1,11 @@
 import os
-from cryptography.hazmat.primitives.asymmetric import rsa
+
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import rsa, padding as asymmetric_padding
 from cryptography.hazmat.primitives import serialization
 from constants import RSA_KEY_SIZE
 
-
+from symmetric_encryption import generate_seed_key
 
 def generate_rsa_keys()->tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
     """
@@ -114,6 +116,58 @@ def deserialize_rsa_public_key(path : str)->rsa.RSAPublicKey:
         return None
 
 
+def encrypt_symmetric_key_rsa(symmetric_key : bytes, public_key : rsa.RSAPublicKey)->bytes:
+    """
+    Шифрует симметричный ключ с использованием открытого RSA ключа с паддингом OAEP
+    :param symmetric_key: Симметричный ключ, который будет зашифрован RSA-открытым ключом
+    :param public_key: Открытый RSA ключ
+    :return: Зашифрованный симметричный ключ
+    """
+    print("Шифрование симметричного ключа RSA открытым ключом...")
+    try:
+        encrypted_key = public_key.encrypt(
+            symmetric_key,
+            asymmetric_padding.OAEP(
+                mgf=asymmetric_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        print("Симметричный ключ зашифрован RSA")
+        return encrypted_key
+    except Exception as e:
+        print(f"Ошибка при шифровании симметричного ключа: {e}")
+        return None
+
+
+def decrypt_symmetric_key_rsa(encrypted_symmetric_key : bytes, private_key : rsa.RSAPrivateKey)->bytes:
+    """
+    Расшифровывает RSA-зашифрованный симметричный ключ с использованием закрытого RSA ключа с паддингом OAEP
+    :param encrypted_symmetric_key: RSA-зашифрованный симметричный ключ
+    :param private_key: Закрытый RSA ключ
+    :return: Расшифрованный симметричный ключ
+    """
+    print("Расшифрование симметричного ключа RSA закрытым ключом...")
+    try:
+        decrypted_key = private_key.decrypt(
+            encrypted_symmetric_key,
+            asymmetric_padding.OAEP(
+                mgf=asymmetric_padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None
+            )
+        )
+        print("Симметричный ключ расшифрован RSA")
+        return decrypted_key
+    except ValueError:
+        print("Ошибка расшифрования симметричного ключа: Неверный закрытый ключ или поврежденные данные")
+        return None
+    except Exception as e:
+        print(f"Ошибка при расшифровании симметричного ключа: {e}")
+        return None
+
+
+
 if __name__ == "__main__":
     private_key_path = "test_private.pem"
     public_key_path = "test_public.pem"
@@ -142,6 +196,21 @@ if __name__ == "__main__":
             print("Проверка десериализованных ключей: ПРОВАЛ")
     else:
         print("Десериализация RSA ключей: ПРОВАЛ")
+
+    sym_key = generate_seed_key()
+    print(f"Симметричный ключ для теста: {sym_key.hex()}")
+
+    encrypted_sym_key = encrypt_symmetric_key_rsa(sym_key, public_rsa_key)
+    if encrypted_sym_key:
+        print("Шифрование симметричного ключа RSA: УСПЕШНО")
+    else:
+        print("Шифрование симметричного ключа RSA: ПРОВАЛ")
+
+    decrypted_sym_key = decrypt_symmetric_key_rsa(encrypted_sym_key, private_rsa_key)
+    if decrypted_sym_key == sym_key:
+        print("Дешифрование симметричного ключа RSA: УСПЕШНО")
+    else:
+        print("Дешифрование симметричного ключа RSA: ПРОВАЛ")
 
     for f in [private_key_path, public_key_path]:
         if os.path.exists(f):
