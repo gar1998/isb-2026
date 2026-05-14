@@ -1,22 +1,26 @@
-import os
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, padding as asymmetric_padding
 from cryptography.hazmat.primitives import serialization
-from constants import RSA_KEY_SIZE
 
-from symmetric_encryption import generate_seed_key
+from management import load_settings, write_in_file_pem, read_pem_file
 
-def generate_rsa_keys()->tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
+
+
+
+def generate_rsa_keys(settings_file : str = "settings.json")->tuple[rsa.RSAPrivateKey, rsa.RSAPublicKey]:
     """
     Генерирует пару RSA ключей (открытый и закрытый)
+    :param settings_file: Путь к файлу настроек
     :return: Пара RSA ключей (открытый и закрытый)
     """
     print("Генерация RSA ключей (закрытого и открытого)...")
 
+    settings = load_settings(settings_file)
+
     private_key = rsa.generate_private_key(
         public_exponent=65537,
-        key_size=RSA_KEY_SIZE
+        key_size=int(settings[0]["rsa_key_size"])
     )
     public_key = private_key.public_key()
 
@@ -39,8 +43,7 @@ def serialize_rsa_private_key(private_key : rsa.RSAPrivateKey, path : str)->bool
             format=serialization.PrivateFormat.TraditionalOpenSSL,
             encryption_algorithm=serialization.NoEncryption()
         )
-        with open(path, 'wb') as f:
-            f.write(pem)
+        write_in_file_pem(path, pem)
         print("Закрытый RSA ключ сериализован")
         return True
     except Exception as e:
@@ -61,8 +64,7 @@ def serialize_rsa_public_key(public_key : rsa.RSAPublicKey, path : str)->bool:
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
-        with open(path, 'wb') as f:
-            f.write(pem)
+        write_in_file_pem(path, pem)
         print("Открытый RSA ключ сериализован")
         return True
     except Exception as e:
@@ -78,8 +80,7 @@ def deserialize_rsa_private_key(path : str)->rsa.RSAPrivateKey:
     """
     print(f"Десериализация закрытого RSA ключа из '{path}'...")
     try:
-        with open(path, 'rb') as f:
-            private_key = serialization.load_pem_private_key(f.read(), password=None)
+        private_key = read_pem_file(path)
         print("Закрытый RSA ключ десериализован")
         return private_key
     except FileNotFoundError:
@@ -101,8 +102,7 @@ def deserialize_rsa_public_key(path : str)->rsa.RSAPublicKey:
     """
     print(f"Десериализация открытого RSA ключа из '{path}'...")
     try:
-        with open(path, 'rb') as f:
-            public_key = serialization.load_pem_public_key(f.read())
+        public_key = read_pem_file(path)
         print("Открытый RSA ключ десериализован")
         return public_key
     except FileNotFoundError:

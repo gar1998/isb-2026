@@ -4,20 +4,25 @@ from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.exceptions import InvalidTag
 
-from constants import SEED_KEY_LENGTH, SEED_BLOCK_SIZE
+from management import load_settings, read_and_write_in_file
 
 
-def generate_seed_key()->bytes:
+
+def generate_seed_key(settings_file : str = "settings.json")->bytes:
     """
     Генерирует случайный 128-битный симметричный SEED ключ
+    :param settings_file: Путь к файлу настроек
     :return: 128-битный симметричный SEED ключ
     """
     print("Генерация SEED ключа...")
 
-    key = os.urandom(SEED_KEY_LENGTH)
+    settings = load_settings(settings_file)
+
+    key = os.urandom(int(settings[0]["seed_key_length"]))
 
     print("SEED ключ сгенерирован")
     return key
+
 
 def encrypt_file_seed(input_filepath : str, output_filepath : str, seed_key : bytes)->bool:
     """
@@ -30,25 +35,33 @@ def encrypt_file_seed(input_filepath : str, output_filepath : str, seed_key : by
     """
     print(f"Шифрование файла '{input_filepath}' с использованием SEED...")
 
-    iv = os.urandom(SEED_BLOCK_SIZE)
+    settings = load_settings("settings.json")
+
+    iv = os.urandom(int(settings[0]["seed_block_size"]))
     cipher = Cipher(algorithms.SEED(seed_key), modes.CBC(iv))
     encryptor = cipher.encryptor()
 
     padder = padding.ANSIX923(algorithms.SEED.block_size).padder()
 
     try:
-        with open(input_filepath, 'rb') as infile, open(output_filepath, 'wb') as outfile:
-            outfile.write(iv)
+        encrypted_data = bytearray()
 
+        with open(input_filepath, 'rb') as infile:
             while True:
                 chunk = infile.read(4096)
                 if not chunk:
                     break
+
                 padded_chunk = padder.update(chunk)
-                outfile.write(encryptor.update(padded_chunk))
+                encrypted_data.extend(encryptor.update(padded_chunk))
 
             final_padded_chunk = padder.finalize()
-            outfile.write(encryptor.update(final_padded_chunk) + encryptor.finalize())
+            encrypted_data.extend(encryptor.update(final_padded_chunk) + encryptor.finalize())
+
+
+        with open(output_filepath, 'wb') as outfile:
+            outfile.write(iv)
+            outfile.write(encrypted_data)
         print(f"Файл '{input_filepath}' успешно зашифрован в '{output_filepath}'.")
         return True
     except FileNotFoundError:
@@ -69,10 +82,12 @@ def decrypt_file_seed(input_filepath : str, output_filepath : str, seed_key : by
     """
     print(f"Расшифрование файла '{input_filepath}' с использованием SEED...")
     try:
-        with open(input_filepath, 'rb') as infile, open(output_filepath, 'wb') as outfile:
-            iv = infile.read(SEED_BLOCK_SIZE)
-            if len(iv) != SEED_BLOCK_SIZE:
-                print("Ошибка: Не удалось прочитать вектор инициализации. Файл поврежден или не зашифрован корректно")
+        settings = load_settings("settings.json")
+
+        with open(input_filepath, 'rb') as infile:
+            iv = infile.read(int(settings[0]["seed_block_size"]))
+            if len(iv) != int(settings[0]["seed_block_size"]):
+                print("Ошибка: Не удалось прочитать вектор инициализации. Файл поврежден или не зашифрован корректно.")
                 return False
 
             cipher = Cipher(algorithms.SEED(seed_key), modes.CBC(iv))
@@ -89,7 +104,10 @@ def decrypt_file_seed(input_filepath : str, output_filepath : str, seed_key : by
             decrypted_data = decryptor.update(ciphertext) + decryptor.finalize()
 
             unpadded_data = unpadder.update(decrypted_data) + unpadder.finalize()
+
+        with open(output_filepath, 'wb') as outfile:
             outfile.write(unpadded_data)
+
         print(f"Файл '{input_filepath}' успешно расшифрован в '{output_filepath}'")
         return True
     except FileNotFoundError:
@@ -113,8 +131,7 @@ def save_bytes_to_file(data : bytes, path : str)->bool:
     """
     print(f"Сохранение данных в '{path}'...")
     try:
-        with open(path, 'wb') as f:
-            f.write(data)
+        read_and_write_in_file(path, 'wb', data)
         print("Данные успешно сохранены")
         return True
     except Exception as e:
@@ -130,8 +147,7 @@ def load_bytes_from_file(path : str)-> bytes:
     """
     print(f"Загрузка данных из '{path}'...")
     try:
-        with open(path, 'rb') as f:
-            data = f.read()
+        data = read_and_write_in_file(path, 'rb')
         print("Данные успешно загружены")
         return data
     except FileNotFoundError:
@@ -140,5 +156,3 @@ def load_bytes_from_file(path : str)-> bytes:
     except Exception as e:
         print(f"Ошибка при загрузке данных из файла: {e}")
         return None
-
-    

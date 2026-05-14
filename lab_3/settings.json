@@ -1,4 +1,8 @@
 {
+
+    "seed_key_length" : 16,
+    "seed_block_size" : 16,
+    "rsa_key_size" : 2048,
     "initial_file": "initial_file.txt",
     "encrypted_file": "encrypted_file.txt",
     "decrypted_file": "decrypted_file.txt",
